@@ -1,16 +1,16 @@
-# Build stage
-FROM node:18-alpine AS build
+# Étape 1 : Build de l'application React
+FROM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-RUN npm run build
 
-# Serve stage using Nginx
+# On utilise npx pour garantir les droits d'exécution sur Vite
+RUN npx vite build --outDir build
+
+# Étape 2 : Serveur de production Nginx léger
 FROM nginx:alpine
 COPY --from=build /app/build /usr/share/nginx/html
-# --- LA NOUVELLE LIGNE EST ICI ---
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-# ---------------------------------
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
