@@ -5,8 +5,8 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 
-# On utilise npx pour garantir les droits d'exécution sur Vite
-RUN npx vite build --outDir build
+# ARME ABSOLUE : Exécution directe du fichier Javascript de Vite via Node
+RUN node ./node_modules/vite/bin/vite.js build --outDir build
 
 # Étape 2 : Serveur de production Nginx léger
 FROM nginx:alpine
