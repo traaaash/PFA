@@ -11,7 +11,7 @@ app = FastAPI(title="Ticketing API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:30000"], # <-- La correction est ici (4 zéros)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
