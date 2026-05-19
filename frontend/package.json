@@ -1,0 +1,16 @@
+{
+  "name": "ticketing-frontend",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "vite build --outDir build"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^7.15.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.0",
+    "vite": "^4.4.0"
+  }
+}
