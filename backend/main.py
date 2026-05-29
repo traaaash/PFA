@@ -155,4 +155,5 @@ def create_ticket(data: TicketCreate):
         new_id = cur.fetchone()[0]
         conn.commit()
         return {"id": new_id, "message": "Succès"}
-    except Exception
+    except Exception:
+        return []
