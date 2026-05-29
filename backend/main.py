@@ -9,18 +9,19 @@ from typing import List, Optional
 
 app = FastAPI(title="Ticketing API")
 
+# Configuration CORS pour Kubernetes (Ports 30000)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:30000",
         "http://127.0.0.1:30000"
-    ], 
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Configuration DB
+# Configuration Base de Données
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_NAME = os.getenv("DB_NAME", "ticket_db")
 DB_USER = os.getenv("DB_USER", "postgres")
@@ -119,8 +120,8 @@ def get_tickets(username: Optional[str] = None):
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # On récupère les colonnes incluant la date (created_at formaté)
-        query = "SELECT id, title, status, description, username, admin_report, resolved_by, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') FROM tickets"
+        # Requête sécurisée avec toutes les colonnes nécessaires
+        query = "SELECT id, title, status, description, username, admin_report, resolved_by FROM tickets"
         
         if username:
             cur.execute(f"{query} WHERE username ILIKE %s ORDER BY id DESC;", (username,))
@@ -131,14 +132,13 @@ def get_tickets(username: Optional[str] = None):
         return [
             {
                 "id": t[0], "title": t[1], "status": t[2], "description": t[3], 
-                "username": t[4], "admin_report": t[5], "resolved_by": t[6], 
-                "created_at": t[7] or "Date inconnue"
+                "username": t[4], "admin_report": t[5], "resolved_by": t[6]
             } 
             for t in tickets
         ]
     except Exception as e:
         print(f"Erreur DB: {e}")
-        return []
+        return [] # Protection anti-crash pour React
     finally:
         if conn: conn.close()
 
@@ -155,5 +155,68 @@ def create_ticket(data: TicketCreate):
         new_id = cur.fetchone()[0]
         conn.commit()
         return {"id": new_id, "message": "Succès"}
+    except Exception as e:
+        if conn: conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn: conn.close()
+
+@app.put("/api/tickets/{ticket_id}")
+def update_ticket(ticket_id: int, data: TicketUpdate):
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE tickets SET status = %s, admin_report = %s, resolved_by = %s WHERE id = %s RETURNING id;",
+            (data.status, data.admin_report, data.resolved_by, ticket_id)
+        )
+        conn.commit()
+        return {"message": "Mise à jour réussie"}
+    except Exception as e:
+        if conn: conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn: conn.close()
+
+# --- GESTION DES UTILISATEURS AD ET RÔLES ---
+@app.get("/api/ad/users")
+def list_ad_users():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT DISTINCT username FROM tickets WHERE username IS NOT NULL UNION SELECT username FROM user_roles WHERE username IS NOT NULL;")
+        users = [{"username": row[0]} for row in cur.fetchall()]
+        conn.close()
+        return users
     except Exception:
         return []
+
+@app.post("/api/admin/assign-role")
+def assign_role(data: RoleAssignment):
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO user_roles (username, role) VALUES (%s, %s) ON CONFLICT (username) DO UPDATE SET role = EXCLUDED.role;",
+            (data.username, data.role)
+        )
+        conn.commit()
+        return {"message": f"Rôle {data.role} assigné à {data.username}"}
+    except Exception as e:
+        if conn: conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn: conn.close()
+
+# --- TEST DE CONNEXION LDAP ---
+@app.post("/api/ldap/test")
+def test_ldap_connection(config: LDAPConfig):
+    try:
+        server = Server(config.server_url, get_info=ALL, connect_timeout=3)
+        conn = Connection(server, user=config.bind_dn, password=config.password, auto_bind=True, receive_timeout=3)
+        conn.unbind() 
+        return {"status": "success", "message": "✅ Connexion réussie !"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
