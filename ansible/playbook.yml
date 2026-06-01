@@ -1,0 +1,122 @@
+---
+- name: Configure PFA Ticketing App Server
+  hosts: pfa_server
+  become: true
+
+  vars:
+    dockerhub_username: "dhiasaidan"
+    ldap_server_url: "ldap://192.168.0.9"
+    ldap_base_dn: "dc=sotupa,dc=local"
+    app_dir: /opt/pfa-app
+
+  tasks:
+
+    # ─── SYSTEM PREPARATION ───────────────────────────────────────
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - curl
+          - wget
+          - git
+          - unzip
+        state: present
+
+    # ─── INSTALL k3s ──────────────────────────────────────────────
+    - name: Check if k3s is already installed
+      stat:
+        path: /usr/local/bin/k3s
+      register: k3s_binary
+
+    - name: Install k3s (lightweight Kubernetes)
+      shell: curl -sfL https://get.k3s.io | sh -
+      when: not k3s_binary.stat.exists
+
+    - name: Wait for k3s to be ready
+      wait_for:
+        path: /etc/rancher/k3s/k3s.yaml
+        timeout: 60
+
+    - name: Set KUBECONFIG environment variable
+      lineinfile:
+        path: /etc/environment
+        line: 'KUBECONFIG=/etc/rancher/k3s/k3s.yaml'
+        state: present
+
+    # ─── CREATE APP DIRECTORY ─────────────────────────────────────
+    - name: Create app directory
+      file:
+        path: "{{ app_dir }}/kubernetes"
+        state: directory
+        mode: '0755'
+
+    # ─── COPY KUBERNETES MANIFESTS ────────────────────────────────
+    - name: Copy Kubernetes manifests
+      copy:
+        src: "../kubernetes/"
+        dest: "{{ app_dir }}/kubernetes/"
+        mode: '0644'
+
+    - name: Update backend LDAP config in manifest
+      replace:
+        path: "{{ app_dir }}/kubernetes/backend-api.yaml"
+        regexp: 'ldap://192\.168\.0\.9'
+        replace: "{{ ldap_server_url }}"
+
+    # ─── DEPLOY APPLICATION ───────────────────────────────────────
+    - name: Deploy PostgreSQL database
+      shell: k3s kubectl apply -f {{ app_dir }}/kubernetes/postgres-db.yaml
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    - name: Deploy Backend
+      shell: k3s kubectl apply -f {{ app_dir }}/kubernetes/backend-api.yaml
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    - name: Deploy Frontend
+      shell: k3s kubectl apply -f {{ app_dir }}/kubernetes/frontend-ui.yaml
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    # ─── WAIT FOR PODS ────────────────────────────────────────────
+    - name: Wait for backend to be ready
+      shell: k3s kubectl rollout status deployment/ticketing-backend --timeout=120s
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      ignore_errors: yes
+
+    - name: Wait for frontend to be ready
+      shell: k3s kubectl rollout status deployment/ticketing-frontend --timeout=120s
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      ignore_errors: yes
+
+    # ─── VERIFY DEPLOYMENT ────────────────────────────────────────
+    - name: Show running pods
+      shell: k3s kubectl get pods
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: pods_output
+
+    - name: Print pods status
+      debug:
+        msg: "{{ pods_output.stdout }}"
+
+    - name: Show services
+      shell: k3s kubectl get services
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: services_output
+
+    - name: Print services
+      debug:
+        msg: "{{ services_output.stdout }}"
+
+    - name: Deployment complete
+      debug:
+        msg: "✅ App deployed! Access at http://{{ ansible_host }}:30000"

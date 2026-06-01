@@ -9,6 +9,31 @@ spec:
     requests:
       storage: 1Gi
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-sql
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS user_roles (
+        username TEXT PRIMARY KEY,
+        role TEXT NOT NULL DEFAULT 'user'
+    );
+
+    CREATE TABLE IF NOT EXISTS tickets (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        status TEXT DEFAULT 'Open',
+        username TEXT,
+        admin_report TEXT,
+        resolved_by TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    INSERT INTO user_roles (username, role) VALUES ('admin', 'admin') ON CONFLICT DO NOTHING;
+    INSERT INTO user_roles (username, role) VALUES ('dhia-it', 'admin') ON CONFLICT DO NOTHING;
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -38,10 +63,16 @@ spec:
           volumeMounts:
             - mountPath: /var/lib/postgresql/data
               name: postgres-storage
+            - mountPath: /docker-entrypoint-initdb.d/init.sql
+              subPath: init.sql
+              name: init-sql
       volumes:
         - name: postgres-storage
           persistentVolumeClaim:
             claimName: postgres-pvc
+        - name: init-sql
+          configMap:
+            name: postgres-init-sql
 ---
 apiVersion: v1
 kind: Service

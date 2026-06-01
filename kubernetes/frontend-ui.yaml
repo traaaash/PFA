@@ -15,6 +15,10 @@ spec:
       containers:
         - name: frontend
           image: dhiasaidan/my-ticketing-frontend:latest
+          imagePullPolicy: Always
+          env:
+            - name: BACKEND_HOST
+              value: "backend-service"
           ports:
             - containerPort: 80
 ---

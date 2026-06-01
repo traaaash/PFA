@@ -6,8 +6,12 @@ import os
 from ldap3 import Server, Connection, ALL
 from ldap3.core.exceptions import LDAPException
 from typing import List, Optional
+from prometheus_fastapi_instrumentator import Instrumentator
 
 app = FastAPI(title="Ticketing API")
+
+# Expose /metrics endpoint for Prometheus scraping
+Instrumentator().instrument(app).expose(app)
 
 # Configuration CORS pour Kubernetes (Ports 30000)
 app.add_middleware(
