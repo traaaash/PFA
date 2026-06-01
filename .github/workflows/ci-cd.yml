@@ -253,7 +253,10 @@ jobs:
           EC2_IP=$(cat /tmp/ec2_ip.txt)
           mkdir -p $HOME/.kube
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/pfa-key.pem ubuntu@$EC2_IP \
-            "sudo cat /etc/rancher/k3s/k3s.yaml" | sed "s/127.0.0.1/$EC2_IP/g" > $HOME/.kube/config
+            "sudo cat /etc/rancher/k3s/k3s.yaml" \
+            | sed "s/127.0.0.1/$EC2_IP/g" \
+            | sed "s/certificate-authority-data:.*$/insecure-skip-tls-verify: true/" \
+            > $HOME/.kube/config
 
       - name: Deploy all manifests
         run: |
