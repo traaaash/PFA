@@ -28,12 +28,67 @@ data "aws_ami" "ubuntu" {
   }
 }
 
+# ─── VPC ──────────────────────────────────────────────────────────
+resource "aws_vpc" "pfa_vpc" {
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+
+  tags = {
+    Name    = "${var.app_name}-vpc"
+    Project = "PFA"
+  }
+}
+
+# ─── SUBNET ───────────────────────────────────────────────────────
+resource "aws_subnet" "pfa_subnet" {
+  vpc_id                  = aws_vpc.pfa_vpc.id
+  cidr_block              = "10.0.1.0/24"
+  availability_zone       = "${var.aws_region}a"
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name    = "${var.app_name}-subnet"
+    Project = "PFA"
+  }
+}
+
+# ─── INTERNET GATEWAY ─────────────────────────────────────────────
+resource "aws_internet_gateway" "pfa_igw" {
+  vpc_id = aws_vpc.pfa_vpc.id
+
+  tags = {
+    Name    = "${var.app_name}-igw"
+    Project = "PFA"
+  }
+}
+
+# ─── ROUTE TABLE ──────────────────────────────────────────────────
+resource "aws_route_table" "pfa_rt" {
+  vpc_id = aws_vpc.pfa_vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.pfa_igw.id
+  }
+
+  tags = {
+    Name    = "${var.app_name}-rt"
+    Project = "PFA"
+  }
+}
+
+resource "aws_route_table_association" "pfa_rta" {
+  subnet_id      = aws_subnet.pfa_subnet.id
+  route_table_id = aws_route_table.pfa_rt.id
+}
+
 # ─── SECURITY GROUP ───────────────────────────────────────────────
 resource "aws_security_group" "pfa_sg" {
   name        = "${var.app_name}-sg"
   description = "Security group for PFA Ticketing App"
+  vpc_id      = aws_vpc.pfa_vpc.id
 
-  # SSH
   ingress {
     from_port   = 22
     to_port     = 22
@@ -41,7 +96,6 @@ resource "aws_security_group" "pfa_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Frontend (Kubernetes NodePort)
   ingress {
     from_port   = 30000
     to_port     = 30000
@@ -49,7 +103,6 @@ resource "aws_security_group" "pfa_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Backend metrics (Kubernetes NodePort)
   ingress {
     from_port   = 30001
     to_port     = 30001
@@ -57,7 +110,6 @@ resource "aws_security_group" "pfa_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Grafana
   ingress {
     from_port   = 3001
     to_port     = 3001
@@ -65,7 +117,6 @@ resource "aws_security_group" "pfa_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Prometheus
   ingress {
     from_port   = 9090
     to_port     = 9090
@@ -73,7 +124,6 @@ resource "aws_security_group" "pfa_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # SonarQube
   ingress {
     from_port   = 9000
     to_port     = 9000
@@ -81,7 +131,6 @@ resource "aws_security_group" "pfa_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # All outbound
   egress {
     from_port   = 0
     to_port     = 0
@@ -97,10 +146,12 @@ resource "aws_security_group" "pfa_sg" {
 
 # ─── EC2 INSTANCE ─────────────────────────────────────────────────
 resource "aws_instance" "pfa_server" {
-  ami                    = data.aws_ami.ubuntu.id
-  instance_type          = var.instance_type
-  key_name               = var.key_name
-  vpc_security_group_ids = [aws_security_group.pfa_sg.id]
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = var.instance_type
+  key_name                    = var.key_name
+  subnet_id                   = aws_subnet.pfa_subnet.id
+  vpc_security_group_ids      = [aws_security_group.pfa_sg.id]
+  associate_public_ip_address = true
 
   root_block_device {
     volume_size = 20
@@ -119,10 +170,12 @@ resource "aws_instance" "pfa_server" {
   }
 }
 
-# ─── ELASTIC IP (optional but stable) ────────────────────────────
+# ─── ELASTIC IP ───────────────────────────────────────────────────
 resource "aws_eip" "pfa_eip" {
   instance = aws_instance.pfa_server.id
   domain   = "vpc"
+
+  depends_on = [aws_internet_gateway.pfa_igw]
 
   tags = {
     Name    = "${var.app_name}-eip"
