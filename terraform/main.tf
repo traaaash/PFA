@@ -97,6 +97,13 @@ resource "aws_security_group" "pfa_sg" {
   }
 
   ingress {
+    from_port   = 6443
+    to_port     = 6443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
     from_port   = 30000
     to_port     = 30000
     protocol    = "tcp"
