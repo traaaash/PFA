@@ -183,7 +183,7 @@ jobs:
       - name: Configure kubeconfig
         run: |
           mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBECONFIG }}" | base64 -di > $HOME/.kube/config
+          printf '%s' "${{ secrets.KUBECONFIG }}" | tr -d ' \n\r' | base64 -d > $HOME/.kube/config
 
       - name: Deploy all manifests
         run: |
