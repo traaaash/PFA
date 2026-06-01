@@ -349,12 +349,17 @@ function UserDashboard({ auth, setAuth }) {
 
 // --- MONITORING PANEL ---
 function MonitoringPanel() {
+  const host = window.location.hostname;
+  const grafanaUrl = `http://${host}:30030`;
+  const prometheusUrl = `http://${host}:30090`;
+  const sonarUrl = 'https://sonarcloud.io/project/overview?id=traaaash_PFA';
+
   const tools = [
     {
       id: 'prometheus',
       label: 'Prometheus',
       icon: '🔥',
-      url: 'http://localhost:9090',
+      url: prometheusUrl,
       description: 'Collecte et requêtes de métriques en temps réel',
       color: '#e6522c',
       badge: 'Actif',
@@ -363,7 +368,7 @@ function MonitoringPanel() {
       id: 'sonarqube',
       label: 'SonarQube',
       icon: '🔍',
-      url: 'http://localhost:9000',
+      url: sonarUrl,
       description: 'Qualité du code & analyse statique',
       color: '#4e9bcd',
       badge: 'Actif',
@@ -382,13 +387,13 @@ function MonitoringPanel() {
               <div className="text-muted" style={{ fontSize: '0.8rem' }}>Dashboards & visualisation des métriques</div>
             </div>
           </div>
-          <a href="http://localhost:3001" target="_blank" rel="noreferrer" className="btn btn-sm btn-primary">
+          <a href={grafanaUrl} target="_blank" rel="noreferrer" className="btn btn-sm btn-primary">
             ↗ Ouvrir
           </a>
         </div>
         <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
           <iframe
-            src="http://localhost:3001"
+            src={grafanaUrl}
             title="Grafana"
             style={{ width: '100%', height: '60vh', border: 'none', display: 'block' }}
           />

@@ -263,6 +263,7 @@ jobs:
           kubectl apply --validate=false -f kubernetes/postgres-db.yaml
           kubectl apply --validate=false -f kubernetes/backend-api.yaml
           kubectl apply --validate=false -f kubernetes/frontend-ui.yaml
+          kubectl apply --validate=false -f kubernetes/monitoring.yaml
 
       - name: Rollout restart
         run: |
