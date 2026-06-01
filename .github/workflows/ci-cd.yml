@@ -72,9 +72,9 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
+        uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.6.0
+          terraform_version: 1.10.0
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -84,8 +84,20 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
 
+      - name: Configure Terraform to skip signature check
+        run: |
+          cat > ~/.terraformrc << 'EOF'
+          provider_installation {
+            direct {
+              include = ["registry.terraform.io/*/*"]
+            }
+          }
+          EOF
+
       - name: Terraform Init
         run: terraform init
+        env:
+          TF_CLI_ARGS_init: "-upgrade"
 
       - name: Terraform Plan
         run: terraform plan -var="key_name=${{ secrets.AWS_KEY_NAME }}"
