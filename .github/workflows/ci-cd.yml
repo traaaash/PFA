@@ -231,15 +231,29 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
+      - name: Download EC2 IP artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ec2-ip
+          path: /tmp
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AWS_SSH_PRIVATE_KEY }}" > ~/.ssh/pfa-key.pem
+          chmod 600 ~/.ssh/pfa-key.pem
+
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
         with:
           version: 'latest'
 
-      - name: Configure kubeconfig
+      - name: Configure kubeconfig from EC2
         run: |
+          EC2_IP=$(cat /tmp/ec2_ip.txt)
           mkdir -p $HOME/.kube
-          printf '%s' "${{ secrets.KUBECONFIG }}" | tr -d ' \n\r' | base64 -d > $HOME/.kube/config
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/pfa-key.pem ubuntu@$EC2_IP \
+            "sudo cat /etc/rancher/k3s/k3s.yaml" | sed "s/127.0.0.1/$EC2_IP/g" > $HOME/.kube/config
 
       - name: Deploy all manifests
         run: |
