@@ -94,6 +94,62 @@ jobs:
           }
           EOF
 
+      - name: Cleanup old PFA infrastructure
+        run: |
+          # Terminate old EC2 instances tagged Project=PFA
+          INSTANCE_IDS=$(aws ec2 describe-instances \
+            --filters "Name=tag:Project,Values=PFA" "Name=instance-state-name,Values=running,stopped,pending" \
+            --query "Reservations[].Instances[].InstanceId" --output text)
+          if [ -n "$INSTANCE_IDS" ]; then
+            echo "Terminating instances: $INSTANCE_IDS"
+            aws ec2 terminate-instances --instance-ids $INSTANCE_IDS
+            aws ec2 wait instance-terminated --instance-ids $INSTANCE_IDS
+          fi
+
+          # Release Elastic IPs tagged Project=PFA
+          ALLOC_IDS=$(aws ec2 describe-addresses \
+            --filters "Name=tag:Project,Values=PFA" \
+            --query "Addresses[].AllocationId" --output text)
+          for alloc in $ALLOC_IDS; do
+            echo "Releasing EIP: $alloc"
+            aws ec2 release-address --allocation-id $alloc || true
+          done
+
+          # Delete PFA VPCs and their dependencies
+          VPC_IDS=$(aws ec2 describe-vpcs \
+            --filters "Name=tag:Project,Values=PFA" \
+            --query "Vpcs[].VpcId" --output text)
+          for vpc in $VPC_IDS; do
+            echo "Cleaning VPC: $vpc"
+
+            # Delete subnets
+            for subnet in $(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$vpc" --query "Subnets[].SubnetId" --output text); do
+              aws ec2 delete-subnet --subnet-id $subnet || true
+            done
+
+            # Detach and delete internet gateways
+            for igw in $(aws ec2 describe-internet-gateways --filters "Name=attachment.vpc-id,Values=$vpc" --query "InternetGateways[].InternetGatewayId" --output text); do
+              aws ec2 detach-internet-gateway --internet-gateway-id $igw --vpc-id $vpc || true
+              aws ec2 delete-internet-gateway --internet-gateway-id $igw || true
+            done
+
+            # Delete non-main route tables
+            for rt in $(aws ec2 describe-route-tables --filters "Name=vpc-id,Values=$vpc" --query "RouteTables[?Associations[0].Main!=\`true\`].RouteTableId" --output text); do
+              aws ec2 delete-route-table --route-table-id $rt || true
+            done
+
+            # Delete non-default security groups
+            for sg in $(aws ec2 describe-security-groups --filters "Name=vpc-id,Values=$vpc" --query "SecurityGroups[?GroupName!='default'].GroupId" --output text); do
+              aws ec2 delete-security-group --group-id $sg || true
+            done
+
+            # Delete VPC
+            aws ec2 delete-vpc --vpc-id $vpc || true
+            echo "Deleted VPC: $vpc"
+          done
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+
       - name: Terraform Init
         run: terraform init
         env:
