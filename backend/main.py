@@ -77,6 +77,8 @@ def login(data: LoginData):
     short_domain = domain_parts[0] if domain_parts else "sotupa"
 
     candidates = [
+        f"cn={data.username},ou=users,{LDAP_BASE_DN}",
+        f"cn={data.username},{LDAP_BASE_DN}",
         f"{data.username}@{upn_domain}",
         f"{short_domain}\\{data.username}",
         data.username
