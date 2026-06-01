@@ -262,6 +262,7 @@ jobs:
         run: |
           kubectl apply --validate=false -f kubernetes/postgres-db.yaml
           kubectl apply --validate=false -f kubernetes/openldap.yaml
+          kubectl apply --validate=false -f kubernetes/openldap-users.yaml
           kubectl apply --validate=false -f kubernetes/backend-api.yaml
           kubectl apply --validate=false -f kubernetes/frontend-ui.yaml
           kubectl apply --validate=false -f kubernetes/monitoring.yaml

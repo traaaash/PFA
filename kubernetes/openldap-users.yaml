@@ -1,0 +1,67 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openldap-users-ldif
+data:
+  users.ldif: |
+    dn: ou=users,dc=sotupa,dc=local
+    objectClass: organizationalUnit
+    ou: users
+
+    dn: cn=alice,ou=users,dc=sotupa,dc=local
+    objectClass: inetOrgPerson
+    cn: alice
+    sn: Alice
+    uid: alice
+    userPassword: alice123
+    mail: alice@sotupa.local
+
+    dn: cn=bob,ou=users,dc=sotupa,dc=local
+    objectClass: inetOrgPerson
+    cn: bob
+    sn: Bob
+    uid: bob
+    userPassword: bob123
+    mail: bob@sotupa.local
+
+    dn: cn=charlie,ou=users,dc=sotupa,dc=local
+    objectClass: inetOrgPerson
+    cn: charlie
+    sn: Charlie
+    uid: charlie
+    userPassword: charlie123
+    mail: charlie@sotupa.local
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: openldap-seed
+spec:
+  ttlSecondsAfterFinished: 120
+  template:
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+        - name: wait-for-ldap
+          image: busybox
+          command: ['sh', '-c', 'until nc -z openldap-service 389; do echo waiting for ldap; sleep 3; done']
+      containers:
+        - name: ldapadd
+          image: osixia/openldap:1.5.0
+          command:
+            - sh
+            - -c
+            - |
+              ldapadd -x -H ldap://openldap-service:389 \
+                -D "cn=admin,dc=sotupa,dc=local" \
+                -w admin123 \
+                -f /ldif/users.ldif || true
+          volumeMounts:
+            - name: ldif
+              mountPath: /ldif
+      volumes:
+        - name: ldif
+          configMap:
+            name: openldap-users-ldif
