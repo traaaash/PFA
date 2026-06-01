@@ -101,7 +101,7 @@ jobs:
         run: echo "${{ steps.tf_output.outputs.ec2_ip }}" > /tmp/ec2_ip.txt
 
       - name: Upload EC2 IP artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ec2-ip
           path: /tmp/ec2_ip.txt
@@ -118,7 +118,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Download EC2 IP artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ec2-ip
           path: /tmp
