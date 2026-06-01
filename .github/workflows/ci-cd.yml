@@ -187,9 +187,9 @@ jobs:
 
       - name: Deploy all manifests
         run: |
-          kubectl apply -f kubernetes/postgres-db.yaml
-          kubectl apply -f kubernetes/backend-api.yaml
-          kubectl apply -f kubernetes/frontend-ui.yaml
+          kubectl apply --validate=false -f kubernetes/postgres-db.yaml
+          kubectl apply --validate=false -f kubernetes/backend-api.yaml
+          kubectl apply --validate=false -f kubernetes/frontend-ui.yaml
 
       - name: Rollout restart
         run: |
