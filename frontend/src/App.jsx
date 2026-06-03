@@ -349,7 +349,7 @@ function UserDashboard({ auth, setAuth }) {
 
 // --- MONITORING PANEL ---
 function MonitoringPanel() {
-  const host = window.location.hostname;
+  const host = globalThis.location.hostname;
   const grafanaUrl = `http://${host}:30030`;
   const prometheusUrl = `http://${host}:30090`;
   const sonarUrl = 'https://sonarcloud.io/project/overview?id=traaaash_PFA';

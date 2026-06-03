@@ -67,7 +67,7 @@ class LDAPConfig(BaseModel):
 ADMIN_USER = os.getenv("ADMIN_USERNAME", "")
 ADMIN_PASS = os.getenv("ADMIN_PASSWORD", "")
 
-@app.post("/api/auth/login")
+@app.post("/api/auth/login", responses={401: {"description": "Invalid credentials"}, 500: {"description": "Internal server error"}})
 def login(data: LoginData):
     if ADMIN_USER and data.username == ADMIN_USER and data.password == ADMIN_PASS:
         return {"username": ADMIN_USER, "role": "admin"}
@@ -152,7 +152,7 @@ def get_tickets(username: Optional[str] = None):
     finally:
         if conn: conn.close()
 
-@app.post("/api/tickets")
+@app.post("/api/tickets", responses={500: {"description": "Database error"}})
 def create_ticket(data: TicketCreate):
     conn = None
     try:
@@ -173,7 +173,7 @@ def create_ticket(data: TicketCreate):
         if conn:
             conn.close()
 
-@app.put("/api/tickets/{ticket_id}")
+@app.put("/api/tickets/{ticket_id}", responses={500: {"description": "Database error"}})
 def update_ticket(ticket_id: int, data: TicketUpdate):
     conn = None
     try:
@@ -206,7 +206,7 @@ def list_ad_users():
     except Exception:  # noqa: BLE001
         return []
 
-@app.post("/api/admin/assign-role")
+@app.post("/api/admin/assign-role", responses={500: {"description": "Database error"}})
 def assign_role(data: RoleAssignment):
     conn = None
     try:
@@ -227,7 +227,7 @@ def assign_role(data: RoleAssignment):
             conn.close()
 
 # --- TEST DE CONNEXION LDAP ---
-@app.post("/api/ldap/test")
+@app.post("/api/ldap/test", responses={400: {"description": "LDAP connection failed"}})
 def test_ldap_connection(config: LDAPConfig):
     try:
         server = Server(config.server_url, get_info=ALL, connect_timeout=3)
