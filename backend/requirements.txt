@@ -4,3 +4,6 @@ psycopg2-binary
 ldap3
 pydantic
 prometheus-fastapi-instrumentator
+httpx
+pytest
+pytest-cov

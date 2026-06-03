@@ -25,7 +25,10 @@ spec:
             - name: LDAP_DOMAIN
               value: "sotupa.local"
             - name: LDAP_ADMIN_PASSWORD
-              value: "admin123"
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: ldap-admin-password
             - name: LDAP_REMOVE_CONFIG_AFTER_SETUP
               value: "false"
           args: ["--copy-service", "--loglevel", "warning"]

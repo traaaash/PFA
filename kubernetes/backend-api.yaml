@@ -24,15 +24,24 @@ spec:
             - name: DB_USER
               value: "postgres"
             - name: DB_PASSWORD
-              value: "postgres"
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: db-password
             - name: LDAP_SERVER_URL
               value: "ldap://openldap-service:389"
             - name: LDAP_BASE_DN
               value: "dc=sotupa,dc=local"
             - name: ADMIN_USERNAME
-              value: "admin"
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: admin-username
             - name: ADMIN_PASSWORD
-              value: "admin"
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: admin-password
           ports:
             - containerPort: 8000
 ---
