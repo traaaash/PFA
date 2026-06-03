@@ -277,6 +277,16 @@ jobs:
             | sed "s/certificate-authority-data:.*$/insecure-skip-tls-verify: true/" \
             > $HOME/.kube/config
 
+      - name: Create Kubernetes secrets
+        run: |
+          kubectl create secret generic app-secrets \
+            --from-literal=db-password=postgres \
+            --from-literal=admin-username=${{ secrets.ADMIN_USERNAME || 'admin' }} \
+            --from-literal=admin-password=${{ secrets.ADMIN_PASSWORD || 'admin' }} \
+            --from-literal=ldap-admin-password=admin123 \
+            --from-literal=grafana-admin-password=admin \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Deploy all manifests
         run: |
           kubectl apply --validate=false -f kubernetes/postgres-db.yaml
