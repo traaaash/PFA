@@ -238,7 +238,8 @@ function UserDashboard({ auth, setAuth }) {
 
   const fetchTickets = () => {
     if (!auth) return;
-    fetch(`${API}/api/tickets?username=${encodeURIComponent(auth.username)}`)
+    const params = new URLSearchParams({ username: auth.username });
+    fetch(`${API}/api/tickets?${params.toString()}`)
       .then(res => res.json())
       .then(data => setTickets(data))
       .catch(() => setTickets([]));
