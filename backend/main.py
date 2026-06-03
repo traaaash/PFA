@@ -116,6 +116,8 @@ def login(data: LoginData):
 
         return {"username": data.username, "role": role}
 
+    except HTTPException:
+        raise
     except LDAPException as e:
         raise HTTPException(status_code=401, detail="Authentification échouée") from e
     except Exception as e:
