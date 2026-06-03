@@ -29,6 +29,10 @@ spec:
               value: "ldap://openldap-service:389"
             - name: LDAP_BASE_DN
               value: "dc=sotupa,dc=local"
+            - name: ADMIN_USERNAME
+              value: "admin"
+            - name: ADMIN_PASSWORD
+              value: "admin"
           ports:
             - containerPort: 8000
 ---
