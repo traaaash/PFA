@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import './App.css';
 
@@ -56,8 +57,9 @@ function Login({ setAuth }) {
 
         <form className="login-form" onSubmit={handleLogin}>
           <div className="form-group">
-            <label>Nom d'utilisateur</label>
+            <label htmlFor="login-username">Nom d'utilisateur</label>
             <input
+              id="login-username"
               type="text"
               placeholder="ex: jean.dupont"
               value={username}
@@ -67,8 +69,9 @@ function Login({ setAuth }) {
             />
           </div>
           <div className="form-group">
-            <label>Mot de passe</label>
+            <label htmlFor="login-password">Mot de passe</label>
             <input
+              id="login-password"
               type="password"
               placeholder="••••••••"
               value={password}
@@ -201,20 +204,20 @@ function ParametresLDAP() {
       {feedback && <div className={`alert ${feedback.startsWith('✅') ? 'alert-success' : 'alert-error'}`}>{feedback}</div>}
       <div className="form-stack">
         <div className="form-group">
-          <label>Serveur LDAP</label>
-          <input type="text" value={serverUrl} onChange={e => setServerUrl(e.target.value)} />
+          <label htmlFor="ldap-server">Serveur LDAP</label>
+          <input id="ldap-server" type="text" value={serverUrl} onChange={e => setServerUrl(e.target.value)} />
         </div>
         <div className="form-group">
-          <label>Base DN</label>
-          <input type="text" value={baseDn} onChange={e => setBaseDn(e.target.value)} />
+          <label htmlFor="ldap-basedn">Base DN</label>
+          <input id="ldap-basedn" type="text" value={baseDn} onChange={e => setBaseDn(e.target.value)} />
         </div>
         <div className="form-group">
-          <label>Bind DN (UPN)</label>
-          <input type="text" placeholder="admin@sotupa.local" value={bindDn} onChange={e => setBindDn(e.target.value)} />
+          <label htmlFor="ldap-binddn">Bind DN (UPN)</label>
+          <input id="ldap-binddn" type="text" placeholder="admin@sotupa.local" value={bindDn} onChange={e => setBindDn(e.target.value)} />
         </div>
         <div className="form-group">
-          <label>Mot de passe</label>
-          <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
+          <label htmlFor="ldap-password">Mot de passe</label>
+          <input id="ldap-password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
         </div>
         <button className="btn btn-primary" onClick={handleTestLDAP} disabled={loading}>
           {loading ? <><span className="spinner" /> Test en cours...</> : 'Tester la connexion'}
@@ -235,7 +238,7 @@ function UserDashboard({ auth, setAuth }) {
 
   const fetchTickets = () => {
     if (!auth) return;
-    fetch(`${API}/api/tickets?username=${auth.username}`)
+    fetch(`${API}/api/tickets?username=${encodeURIComponent(auth.username)}`)
       .then(res => res.json())
       .then(data => setTickets(data))
       .catch(() => setTickets([]));
@@ -308,12 +311,12 @@ function UserDashboard({ auth, setAuth }) {
           {feedback && <div className={`alert ${feedback.startsWith('✅') ? 'alert-success' : 'alert-error'}`}>{feedback}</div>}
           <form onSubmit={handleCreateTicket} className="form-stack">
             <div className="form-group">
-              <label>Sujet</label>
-              <input type="text" placeholder="Ex: Impossible d'accéder au VPN" value={title} onChange={e => setTitle(e.target.value)} required disabled={loading} />
+              <label htmlFor="ticket-title">Sujet</label>
+              <input id="ticket-title" type="text" placeholder="Ex: Impossible d'accéder au VPN" value={title} onChange={e => setTitle(e.target.value)} required disabled={loading} />
             </div>
             <div className="form-group">
-              <label>Description</label>
-              <textarea placeholder="Décrivez votre problème en détail..." value={desc} onChange={e => setDesc(e.target.value)} required disabled={loading} />
+              <label htmlFor="ticket-desc">Description</label>
+              <textarea id="ticket-desc" placeholder="Décrivez votre problème en détail..." value={desc} onChange={e => setDesc(e.target.value)} required disabled={loading} />
             </div>
             <button className="btn btn-primary" type="submit" disabled={loading}>
               {loading ? <><span className="spinner" /> Envoi en cours...</> : 'Envoyer la demande'}
@@ -641,10 +644,17 @@ export default function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={!auth ? <Login setAuth={setAuth} /> : <Navigate to={auth.role === 'admin' ? '/admin' : '/user'} />} />
+        <Route path="/" element={auth ? <Navigate to={auth.role === 'admin' ? '/admin' : '/user'} /> : <Login setAuth={setAuth} />} />
         <Route path="/admin" element={auth?.role === 'admin' ? <AdminDashboard auth={auth} setAuth={setAuth} /> : <Navigate to="/" />} />
         <Route path="/user" element={auth ? <UserDashboard auth={auth} setAuth={setAuth} /> : <Navigate to="/" />} />
       </Routes>
     </Router>
   );
 }
+
+// --- PROPTYPES ---
+const authShape = PropTypes.shape({ username: PropTypes.string, role: PropTypes.string });
+
+Login.propTypes = { setAuth: PropTypes.func.isRequired };
+UserDashboard.propTypes = { auth: authShape, setAuth: PropTypes.func.isRequired };
+AdminDashboard.propTypes = { auth: authShape, setAuth: PropTypes.func.isRequired };
