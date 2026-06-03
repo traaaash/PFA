@@ -5,7 +5,7 @@ import psycopg2
 import os
 from ldap3 import Server, Connection, ALL
 from ldap3.core.exceptions import LDAPException
-from typing import List, Optional
+from typing import Optional
 from prometheus_fastapi_instrumentator import Instrumentator
 
 app = FastAPI(title="Ticketing API")
@@ -64,12 +64,13 @@ class LDAPConfig(BaseModel):
     password: str
 
 # --- AUTHENTIFICATION ---
+ADMIN_USER = os.getenv("ADMIN_USERNAME", "")
+ADMIN_PASS = os.getenv("ADMIN_PASSWORD", "")
+
 @app.post("/api/auth/login")
 def login(data: LoginData):
-    if data.username == "admin" and data.password == "admin":
-        return {"username": "admin", "role": "admin"}
-    if data.username == "user" and data.password == "user":
-        return {"username": "user", "role": "user"}
+    if ADMIN_USER and data.username == ADMIN_USER and data.password == ADMIN_PASS:
+        return {"username": ADMIN_USER, "role": "admin"}
     
     raw_dn = LDAP_BASE_DN.lower()
     domain_parts = [p.replace('dc=', '').strip() for p in raw_dn.split(',') if p.strip().startswith('dc=')]
@@ -110,13 +111,15 @@ def login(data: LoginData):
                 role = res[0]
             cur.close()
             conn_db.close()
-        except:
+        except Exception:  # noqa: BLE001
             pass
-            
+
         return {"username": data.username, "role": role}
 
+    except LDAPException as e:
+        raise HTTPException(status_code=401, detail="Authentification échouée") from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur") from e
 
 # --- GESTION DES TICKETS ET RAPPORTS ---
 @app.get("/api/tickets")
@@ -130,9 +133,9 @@ def get_tickets(username: Optional[str] = None):
         query = "SELECT id, title, status, description, username, admin_report, resolved_by FROM tickets"
         
         if username:
-            cur.execute(f"{query} WHERE username ILIKE %s ORDER BY id DESC;", (username,))
+            cur.execute(query + " WHERE username ILIKE %s ORDER BY id DESC;", (username,))
         else:
-            cur.execute(f"{query} ORDER BY id DESC;")
+            cur.execute(query + " ORDER BY id DESC;")
         
         tickets = cur.fetchall()
         return [
@@ -142,9 +145,8 @@ def get_tickets(username: Optional[str] = None):
             } 
             for t in tickets
         ]
-    except Exception as e:
-        print(f"Erreur DB: {e}")
-        return [] # Protection anti-crash pour React
+    except Exception:  # noqa: BLE001
+        return []
     finally:
         if conn: conn.close()
 
@@ -162,10 +164,12 @@ def create_ticket(data: TicketCreate):
         conn.commit()
         return {"id": new_id, "message": "Succès"}
     except Exception as e:
-        if conn: conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail="Erreur lors de la création du ticket") from e
     finally:
-        if conn: conn.close()
+        if conn:
+            conn.close()
 
 @app.put("/api/tickets/{ticket_id}")
 def update_ticket(ticket_id: int, data: TicketUpdate):
@@ -180,10 +184,12 @@ def update_ticket(ticket_id: int, data: TicketUpdate):
         conn.commit()
         return {"message": "Mise à jour réussie"}
     except Exception as e:
-        if conn: conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail="Erreur lors de la mise à jour du ticket") from e
     finally:
-        if conn: conn.close()
+        if conn:
+            conn.close()
 
 # --- GESTION DES UTILISATEURS AD ET RÔLES ---
 @app.get("/api/ad/users")
@@ -195,7 +201,7 @@ def list_ad_users():
         users = [{"username": row[0]} for row in cur.fetchall()]
         conn.close()
         return users
-    except Exception:
+    except Exception:  # noqa: BLE001
         return []
 
 @app.post("/api/admin/assign-role")
@@ -211,10 +217,12 @@ def assign_role(data: RoleAssignment):
         conn.commit()
         return {"message": f"Rôle {data.role} assigné à {data.username}"}
     except Exception as e:
-        if conn: conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail="Erreur lors de l'assignation du rôle") from e
     finally:
-        if conn: conn.close()
+        if conn:
+            conn.close()
 
 # --- TEST DE CONNEXION LDAP ---
 @app.post("/api/ldap/test")
@@ -225,4 +233,4 @@ def test_ldap_connection(config: LDAPConfig):
         conn.unbind() 
         return {"status": "success", "message": "✅ Connexion réussie !"}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Connexion LDAP échouée") from e

@@ -98,10 +98,10 @@ function GestionUtilisateurs() {
     fetch(`${API}/api/ad/users`)
       .then(res => res.json())
       .then(data => setUsers(data.filter(u => u.username)))
-      .catch(err => console.error(err));
+      .catch(() => setUsers([]));
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { fetchUsers(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRoleChange = async (username, role) => {
     if (!username) return;
@@ -151,8 +151,8 @@ function GestionUtilisateurs() {
             {users.length === 0 ? (
               <tr><td colSpan="2" className="text-center text-muted">Aucun utilisateur enregistré.</td></tr>
             ) : (
-              users.map((u, index) => (
-                <tr key={index}>
+              users.map((u) => (
+                <tr key={u.username}>
                   <td><strong>{u.username}</strong></td>
                   <td className="action-cell">
                     <button className="btn btn-sm btn-primary" onClick={() => handleRoleChange(u.username, 'admin')}>Promouvoir Admin</button>
@@ -238,10 +238,10 @@ function UserDashboard({ auth, setAuth }) {
     fetch(`${API}/api/tickets?username=${auth.username}`)
       .then(res => res.json())
       .then(data => setTickets(data))
-      .catch(err => console.error(err));
+      .catch(() => setTickets([]));
   };
 
-  useEffect(() => { fetchTickets(); }, [auth]);
+  useEffect(() => { fetchTickets(); }, [auth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCreateTicket = async (e) => {
     e.preventDefault();
@@ -436,10 +436,11 @@ function AdminDashboard({ auth, setAuth }) {
   const fetchTickets = () => {
     fetch(`${API}/api/tickets`)
       .then(res => res.json())
-      .then(data => setTickets(data));
+      .then(data => setTickets(data))
+      .catch(() => setTickets([]));
   };
 
-  useEffect(() => { fetchTickets(); }, []);
+  useEffect(() => { fetchTickets(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFinalizeTicket = async (id) => {
     const report = reportTexts[id] || '';
